@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.media.RingtoneManager;
@@ -21,6 +22,7 @@ import android.widget.Toast;
 
 import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.bridge.ReactContext;
+import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
@@ -31,8 +33,15 @@ public class MessagingService extends FirebaseMessagingService {
     private static final String TAG = "MessagingService";
 
     @Override
+    public void onNewToken(String s) {
+        super.onNewToken(s);
+        Log.d(TAG, "New token: " + s);
+    }
+
+    @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         Log.d(TAG, "Message data payload: " + remoteMessage.getData());
+        Log.d(TAG, "My secret token: " + FirebaseInstanceId.getInstance().getToken());
 
         // We need to run this on the main thread, as the React code assumes that is true.
         // Namely, DevServerHelper constructs a Handler() without a Looper, which triggers:
@@ -66,68 +75,72 @@ public class MessagingService extends FirebaseMessagingService {
        notificationService.putExtra("userName", "Denis");
        this.startService(notificationService);
 */
-//        sendNotification(remoteMessage.getNotification().getTitle(), remoteMessage.getNotification().getBody());
-//
-//        Log.d(TAG, "messageService hello");
-//
-//
-//
-//        Context context = getApplicationContext();
-//        PackageManager pm = context.getPackageManager();
-//        Intent launchIntent = pm.getLaunchIntentForPackage("com.mtsiot");
-//
-//        /*if (launchIntent != null) {
-//            Log.d(TAG, "Launch intent: " + launchIntent.getPackage());
-//            context.startActivity(launchIntent);
-//            return;
-//        }*/
-//
-//        List<ResolveInfo> activities = pm.queryIntentActivities(launchIntent, 0);
-//
-//        Log.d(TAG, "Activities list:");
-//        for (ResolveInfo item : activities) {
-//            Log.d(TAG, "Activity name: " + item.activityInfo.name);
-//
-//        }
-//
-///*
-//        Intent i = new Intent(Intent.ACTION_VIEW);
-//        ComponentName componentName = new ComponentName(getApplicationContext().getPackageName(), ".MainActivity");
-//        i.addCategory(Intent.CATEGORY_BROWSABLE);
-//        i.addCategory(Intent.CATEGORY_DEFAULT);
-//        i.setComponent(componentName);
-//        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-//        startActivity(i);
-//        return;
-//*/
-//        if (true) {
-//            try {
-//
-//                String ns = getApplicationContext().getPackageName();
-//                String cls = ns + ".MainActivity";
-//                Intent intent = new Intent(getApplicationContext(), Class.forName(cls));
-//
-//               /* Intent i = getApplicationContext().getPackageManager().getLaunchIntentForPackage(cls);
-//                getApplicationContext().startActivity(i);
-//                startActivity(i);*/
-//
-//                intent.setAction(Intent.ACTION_MAIN);
-//                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-//                intent.addCategory(Intent.CATEGORY_LAUNCHER);
-//                intent.putExtra("foreground", true);
-//
-//                startActivity(intent);
-//            } catch (Exception e) {
-//                Log.w(TAG, "Failed to open application on received call", e);
-//            }
-//        }
+       sendNotification(remoteMessage.getNotification().getTitle(), remoteMessage.getNotification().getBody());
+
+        Log.d(TAG, "messageService hello");
+
+        Context context = getApplicationContext();
+        PackageManager pm = context.getPackageManager();
+        Intent launchIntent = pm.getLaunchIntentForPackage("com.mtsiot");
+
+        /*if (launchIntent != null) {
+            Log.d(TAG, "Launch intent: " + launchIntent.getPackage());
+            context.startActivity(launchIntent);
+            return;
+        }*/
+
+        List<ResolveInfo> activities = pm.queryIntentActivities(launchIntent, 0);
+
+        Log.d(TAG, "Activities list:");
+        for (ResolveInfo item : activities) {
+            Log.d(TAG, "Activity name: " + item.activityInfo.name);
+
+        }
+
+        Intent actionIntent = new Intent();
+        actionIntent.setAction("com.qimus.react.SOME_MESSAGE");
+        sendBroadcast(actionIntent);
+
+/*
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        ComponentName componentName = new ComponentName(getApplicationContext().getPackageName(), ".MainActivity");
+        i.addCategory(Intent.CATEGORY_BROWSABLE);
+        i.addCategory(Intent.CATEGORY_DEFAULT);
+        i.setComponent(componentName);
+        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        startActivity(i);
+        return;
+*/
+        if (true) {
+            try {
+
+                String ns = getApplicationContext().getPackageName();
+                String cls = ns + ".MainActivity";
+                Intent intent = new Intent(getApplicationContext(), Class.forName(cls));
+
+               /* Intent i = getApplicationContext().getPackageManager().getLaunchIntentForPackage(cls);
+                getApplicationContext().startActivity(i);
+                startActivity(i);*/
+
+                intent.setAction(Intent.ACTION_MAIN);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.addCategory(Intent.CATEGORY_LAUNCHER);
+                intent.putExtra("foreground", true);
+
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to open application on received call", e);
+            }
+        }
 
        // Toast.makeText(getApplication().getApplicationContext(), "some text", 10).show();
     }
 
     private void sendNotification(String title, String body) {
         try {
-            PowerManager.WakeLock wakelock = ((PowerManager) getApplicationContext().getSystemService(Context.POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "");
+            PowerManager.WakeLock wakelock = ((PowerManager) getApplicationContext()
+                    .getSystemService(Context.POWER_SERVICE))
+                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "");
             wakelock.acquire();
 
             Intent intent = new Intent(getApplicationContext(), Class.forName("com.mtsiot.MainActivity")).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -165,5 +178,4 @@ public class MessagingService extends FirebaseMessagingService {
             e.printStackTrace();
         }
     }
-
 }

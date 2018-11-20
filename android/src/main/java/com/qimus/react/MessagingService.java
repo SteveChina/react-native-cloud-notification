@@ -30,7 +30,7 @@ public class MessagingService extends FirebaseMessagingService {
                 // Construct and load our normal React JS code bundle
                 ReactInstanceManager mReactInstanceManager = ((ReactApplication) getApplication()).getReactNativeHost().getReactInstanceManager();
                 ReactContext context = mReactInstanceManager.getCurrentReactContext();
-                // If it's constructed, send a notification
+                // If it's constructed, send a notificationv
                 if (context != null) {
                     LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(message);
                 } else {
@@ -54,6 +54,16 @@ public class MessagingService extends FirebaseMessagingService {
 
         notification.build();
 
-        Toast.makeText(getApplication().getApplicationContext(), "some text", 10).show();
+        String ns = getApplicationContext().getPackageName();
+        String cls = ns + ".MainActivity";
+
+        Intent intent = new Intent(getApplicationContext(), Class.forName(cls));
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        intent.putExtra("foreground", true);
+
+        startActivity(intent);
+
+       // Toast.makeText(getApplication().getApplicationContext(), "some text", 10).show();
     }
 }

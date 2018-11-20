@@ -1,8 +1,11 @@
 package com.qimus.react;
 
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -54,16 +57,37 @@ public class MessagingService extends FirebaseMessagingService {
 
         notification.build();
 
-        String ns = getApplicationContext().getPackageName();
-        String cls = ns + ".MainActivity";
+        ActivityManager.RunningAppProcessInfo appProcessInfo = new ActivityManager.RunningAppProcessInfo();
+        ActivityManager.getMyMemoryState(appProcessInfo);
 
-        Intent intent = new Intent(getApplicationContext(), Class.forName(cls));
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        intent.putExtra("foreground", true);
+        boolean mAppHidden = appProcessInfo.importance != ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+                && appProcessInfo.importance != ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE;
 
-        startActivity(intent);
+        Log.d(TAG, "messageService hello");
+
+        if (true) {
+            try {
+
+                String ns = getApplicationContext().getPackageName();
+                String cls = ns + ".MainActivity";
+
+                Log.d(TAG, "cls = " + cls);
+
+                Intent intent = new Intent(getApplicationContext(), Class.forName(cls));
+                FirebaseDataReceiver.completeWakefulIntent(intent);
+               /* intent.setAction(Intent.ACTION_MAIN);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.addCategory(Intent.CATEGORY_LAUNCHER);
+                intent.putExtra("foreground", true);
+
+                startActivity(intent);*/
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to open application on received call", e);
+            }
+        }
 
        // Toast.makeText(getApplication().getApplicationContext(), "some text", 10).show();
     }
+
+
 }

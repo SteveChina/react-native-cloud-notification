@@ -1,6 +1,7 @@
 package com.qimus.react;
 
 import android.app.ActivityManager;
+import android.app.KeyguardManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -27,6 +28,7 @@ import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
 import java.util.List;
+import java.util.Map;
 
 public class MessagingService extends FirebaseMessagingService {
 
@@ -43,97 +45,34 @@ public class MessagingService extends FirebaseMessagingService {
         Log.d(TAG, "Message data payload: " + remoteMessage.getData());
         Log.d(TAG, "My secret token: " + FirebaseInstanceId.getInstance().getToken());
 
-        // We need to run this on the main thread, as the React code assumes that is true.
-        // Namely, DevServerHelper constructs a Handler() without a Looper, which triggers:
-        // "Can't create handler inside thread that has not called Looper.prepare()"
-       /* Handler handler = new Handler(Looper.getMainLooper());
-        handler.post(new Runnable() {
-            public void run() {
-                // Construct and load our normal React JS code bundle
-                ReactInstanceManager mReactInstanceManager = ((ReactApplication) getApplication()).getReactNativeHost().getReactInstanceManager();
-                ReactContext context = mReactInstanceManager.getCurrentReactContext();
-                // If it's constructed, send a notificationv
-                if (context != null) {
-                    LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(message);
-                } else {
-                    // Otherwise wait for construction, then send the notification
-                    mReactInstanceManager.addReactInstanceEventListener(new ReactInstanceManager.ReactInstanceEventListener() {
-                        public void onReactContextInitialized(ReactContext context) {
-                            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(message);
-                        }
-                    });
-                    if (!mReactInstanceManager.hasStartedCreatingInitialContext()) {
-                        // Construct it in the background
-                        mReactInstanceManager.createReactContextInBackground();
-                    }
-                }
-            }
-        });*/
+        RemoteMessage.Notification notification = remoteMessage.getNotification();
 
-       /*
-       Intent notificationService = new Intent(this, NotificationService.class);
-       notificationService.putExtra("userName", "Denis");
-       this.startService(notificationService);
-*/
-       sendNotification(remoteMessage.getNotification().getTitle(), remoteMessage.getNotification().getBody());
-
-        Log.d(TAG, "messageService hello");
-
-        Context context = getApplicationContext();
-        PackageManager pm = context.getPackageManager();
-        Intent launchIntent = pm.getLaunchIntentForPackage("com.mtsiot");
-
-        /*if (launchIntent != null) {
-            Log.d(TAG, "Launch intent: " + launchIntent.getPackage());
-            context.startActivity(launchIntent);
-            return;
-        }*/
-
-        List<ResolveInfo> activities = pm.queryIntentActivities(launchIntent, 0);
-
-        Log.d(TAG, "Activities list:");
-        for (ResolveInfo item : activities) {
-            Log.d(TAG, "Activity name: " + item.activityInfo.name);
-
+        if (notification == null) {
+            this.tryWakeUp();
+        } else {
+            sendNotification(notification.getTitle(), notification.getBody());
         }
+    }
 
-        Intent actionIntent = new Intent();
-        actionIntent.setAction("com.qimus.react.SOME_MESSAGE");
-        sendBroadcast(actionIntent);
+    private void tryWakeUp() {
+        try {
 
-/*
-        Intent i = new Intent(Intent.ACTION_VIEW);
-        ComponentName componentName = new ComponentName(getApplicationContext().getPackageName(), ".MainActivity");
-        i.addCategory(Intent.CATEGORY_BROWSABLE);
-        i.addCategory(Intent.CATEGORY_DEFAULT);
-        i.setComponent(componentName);
-        i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-        startActivity(i);
-        return;
-*/
-        if (true) {
-            try {
+            String ns = getApplicationContext().getPackageName();
+            String cls = ns + ".MainActivity";
+            Intent intent = new Intent(getApplicationContext(), Class.forName(cls));
 
-                String ns = getApplicationContext().getPackageName();
-                String cls = ns + ".MainActivity";
-                Intent intent = new Intent(getApplicationContext(), Class.forName(cls));
+            intent.setAction(Intent.ACTION_MAIN);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addCategory(Intent.CATEGORY_LAUNCHER);
+            intent.putExtra("foreground", true);
 
-               /* Intent i = getApplicationContext().getPackageManager().getLaunchIntentForPackage(cls);
-                getApplicationContext().startActivity(i);
-                startActivity(i);*/
+            KeyguardManager manager = (KeyguardManager) getApplication().getSystemService(KEYGUARD_SERVICE);
+            manager.
 
-                intent.setAction(Intent.ACTION_MAIN);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.addCategory(Intent.CATEGORY_LAUNCHER);
-                intent.putExtra("foreground", true);
-
-                startActivity(intent);
-            } catch (Exception e) {
-                Log.w(TAG, "Failed to open application on received call", e);
-            }
+            startActivity(intent);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to open application on message receive", e);
         }
-
-       // Toast.makeText(getApplication().getApplicationContext(), "some text", 10).show();
     }
 
     private void sendNotification(String title, String body) {

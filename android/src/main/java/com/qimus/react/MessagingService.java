@@ -24,6 +24,7 @@ public class MessagingService extends FirebaseMessagingService {
     @Override
     public void onNewToken(String s) {
         super.onNewToken(s);
+        ReactHelper.getInstance().sendEvent(RNCloudNotificationModule.EVENT_FCM_UPDATE, s);
         Log.d(TAG, "New token: " + s);
     }
 
@@ -57,8 +58,6 @@ public class MessagingService extends FirebaseMessagingService {
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             intent.addCategory(Intent.CATEGORY_LAUNCHER);
             intent.putExtra("foreground", true);
-
-            KeyguardManager manager = (KeyguardManager) getApplication().getSystemService(KEYGUARD_SERVICE);
 
             PowerManager pm = (PowerManager) getApplicationContext()
                     .getSystemService(Context.POWER_SERVICE);

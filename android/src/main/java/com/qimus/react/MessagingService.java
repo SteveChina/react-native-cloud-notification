@@ -1,33 +1,20 @@
 package com.qimus.react;
 
-import android.app.ActivityManager;
 import android.app.KeyguardManager;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
+import android.graphics.BitmapFactory;
 import android.media.RingtoneManager;
 import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.PowerManager;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
-import android.widget.Toast;
-
-import com.facebook.react.ReactInstanceManager;
-import com.facebook.react.bridge.ReactContext;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
-import java.util.List;
 import java.util.Map;
 
 public class MessagingService extends FirebaseMessagingService {
@@ -48,9 +35,14 @@ public class MessagingService extends FirebaseMessagingService {
         RemoteMessage.Notification notification = remoteMessage.getNotification();
 
         if (notification == null) {
-            this.tryWakeUp();
+            Map<String, String> data = remoteMessage.getData();
+            if (data.containsKey("title") && data.containsKey("body")) {
+                sendDataNotification(data.get("title"), data.get("body"));
+            } else {
+                this.tryWakeUp();
+            }
         } else {
-            sendNotification(notification.getTitle(), notification.getBody());
+            sendDataNotification(notification.getTitle(), notification.getBody());
         }
     }
 
@@ -67,54 +59,45 @@ public class MessagingService extends FirebaseMessagingService {
             intent.putExtra("foreground", true);
 
             KeyguardManager manager = (KeyguardManager) getApplication().getSystemService(KEYGUARD_SERVICE);
-            manager.
+
+            PowerManager pm = (PowerManager) getApplicationContext()
+                    .getSystemService(Context.POWER_SERVICE);
+
+            PowerManager.WakeLock wl1 = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "wl1");
+            wl1.acquire(10000);
+
+            PowerManager.WakeLock cpuLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "wl2");
+            cpuLock.acquire(10000);
 
             startActivity(intent);
+
+            wl1.release();
         } catch (Exception e) {
             Log.w(TAG, "Failed to open application on message receive", e);
         }
     }
 
-    private void sendNotification(String title, String body) {
+    private void sendDataNotification(String title, String body) {
         try {
-            PowerManager.WakeLock wakelock = ((PowerManager) getApplicationContext()
-                    .getSystemService(Context.POWER_SERVICE))
-                    .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "");
-            wakelock.acquire();
+            Intent intent = new Intent(getApplicationContext(), Class.forName("com.qimus.MainActivity"));
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
-            Intent intent = new Intent(getApplicationContext(), Class.forName("com.mtsiot.MainActivity")).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-            PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+            Uri defaultsSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
-            Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
+                    //.setSmallIcon(R.drawable.ic_launcher)
+                    //.setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.drawable.ic_launcher))
+                    .setContentTitle(title)
+                    .setContentText(body)
+                    .setAutoCancel(true)
+                    .setSound(defaultsSoundUri);
 
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext());
+            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
-           // builder.setSmallIcon(R.drawable.ic_stat_notification);
-            builder.setVibrate(new long[]{0, 200});
-            builder.setContentTitle(title);
-            builder.setContentText(body);
-            builder.setColor(0xffffa714);
-            builder.setSound(alarmSound);
-            builder.setContentIntent(contentIntent);
-            builder.setAutoCancel(true);
-            builder.setChannelId("my_channel_01");
+            notificationManager.notify(0, notificationBuilder.build());
 
-            NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle(builder);
-            bigTextStyle.setBigContentTitle(title == null ? getString(R.string.common_google_play_services_install_title) : title);
-            bigTextStyle.bigText(body);
-
-            NotificationManager mNotificationManager = (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
-
-//            String id = "my_channel_0";
-//            CharSequence name = getString(R.string.common_google_play_services_notification_channel_name);
-//
-//            NotificationChannel channel = new NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH);
-//            channel.enableLights(true);
-
-            mNotificationManager.notify(1, bigTextStyle.build());
-            wakelock.release();
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.d(TAG, "Error on sendDataNotification");
         }
     }
 }

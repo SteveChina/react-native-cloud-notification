@@ -1,20 +1,17 @@
 package com.qimus.react;
 
-import android.app.KeyguardManager;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.BitmapFactory;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.PowerManager;
-import android.support.v4.app.NotificationCompat;
 import android.util.Log;
+
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class MessagingService extends FirebaseMessagingService {
@@ -25,13 +22,12 @@ public class MessagingService extends FirebaseMessagingService {
     public void onNewToken(String s) {
         super.onNewToken(s);
         ReactHelper.getInstance().sendEvent(RNCloudNotificationModule.EVENT_FCM_UPDATE, s);
-        Log.d(TAG, "New token: " + s);
     }
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         Log.d(TAG, "Message data payload: " + remoteMessage.getData());
-        Log.d(TAG, "My secret token: " + FirebaseInstanceId.getInstance().getToken());
+        notifyAboutNewMessage(remoteMessage);
 
         RemoteMessage.Notification notification = remoteMessage.getNotification();
 
@@ -45,6 +41,28 @@ public class MessagingService extends FirebaseMessagingService {
         } else {
             sendDataNotification(notification.getTitle(), notification.getBody());
         }
+    }
+
+    private void notifyAboutNewMessage(RemoteMessage remoteMessage) {
+        WritableMap notificationData = Arguments.createMap();
+
+        RemoteMessage.Notification notification = remoteMessage.getNotification();
+        if (notification != null) {
+            notificationData.putString("title", notification.getTitle());
+            notificationData.putString("body", notification.getBody());
+        }
+
+        WritableMap dataMap = Arguments.createMap();
+
+        for (Map.Entry<String, String> entry : remoteMessage.getData().entrySet()) {
+            dataMap.putString(entry.getKey(), entry.getValue());
+        }
+
+        WritableMap params = Arguments.createMap();
+        params.putMap("data", dataMap);
+        params.putMap("notification", notificationData);
+
+        ReactHelper.getInstance().sendEvent("FCMIncomingMessage", params);
     }
 
     private void tryWakeUp() {
@@ -77,26 +95,7 @@ public class MessagingService extends FirebaseMessagingService {
     }
 
     private void sendDataNotification(String title, String body) {
-        try {
-            Intent intent = new Intent(getApplicationContext(), Class.forName("com.qimus.MainActivity"));
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-
-            Uri defaultsSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-
-            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
-                    //.setSmallIcon(R.drawable.ic_launcher)
-                    //.setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.drawable.ic_launcher))
-                    .setContentTitle(title)
-                    .setContentText(body)
-                    .setAutoCancel(true)
-                    .setSound(defaultsSoundUri);
-
-            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-            notificationManager.notify(0, notificationBuilder.build());
-
-        } catch (Exception e) {
-            Log.d(TAG, "Error on sendDataNotification");
-        }
+        Log.d(TAG, "sendDataNotification, title: " + title);
+        RNNotificationManager.getInstance().sendNotification(title, body);
     }
 }

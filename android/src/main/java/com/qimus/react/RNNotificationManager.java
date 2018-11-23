@@ -1,14 +1,15 @@
 package com.qimus.react;
 
-import android.app.Notification;
+import android.app.Activity;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.media.AudioAttributes;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -18,11 +19,17 @@ import android.util.Log;
 
 public class RNNotificationManager {
     private static final String TAG = "RNNotificationManager";
-    private static final String NOTIFICATION_CHANNEL = "myNotificationChannel2";
+    private static final String NOTIFICATION_CHANNEL = "myNotificationChannel";
+
+    public static final String PRIORITY_URGENT = "urgent";
+    public static final String PRIORITY_HIGH = "high";
+    public static final String PRIORITY_DEFAULT = "default";
+    public static final String PRIORITY_LOW = "low";
 
     private static RNNotificationManager instance = null;
 
     private Context context;
+    private Activity activity;
 
     public static RNNotificationManager getInstance() {
         if (instance == null) {
@@ -41,6 +48,11 @@ public class RNNotificationManager {
         return (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
     }
 
+    public RNNotificationManager setActivity(Activity activity) {
+        this.activity = activity;
+        return this;
+    }
+
     private Intent createIntent() throws Exception {
         String ns = context.getPackageName();
         String cls = ns + ".MainActivity";
@@ -52,50 +64,117 @@ public class RNNotificationManager {
         }
     }
 
-    public void sendNotification(String title, String body) {
+    public void sendNotification(NotificationDto dto) {
         try {
             Intent intent = createIntent();
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            intent.putExtra("clicked", true);
 
             PendingIntent contentIntent = PendingIntent.getActivity(
                     this.context,
                     0,
                     intent,
-                    0
+                    PendingIntent.FLAG_ONE_SHOT
             );
 
+            PackageManager pm = this.context.getPackageManager();
+            Resources resources = pm.getResourcesForApplication(context.getPackageName());
+            int resId = resources.getIdentifier(dto.getSmallIcon(), "mipmap", context.getPackageName());
+
             NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this.context, NOTIFICATION_CHANNEL)
-                    .setSmallIcon(R.drawable.common_google_signin_btn_icon_dark)
-                    .setLargeIcon(BitmapFactory.decodeResource(this.context.getResources(), R.drawable.common_google_signin_btn_icon_dark))
-                    .setContentTitle(title)
-                    .setContentText(body)
-                    .setDefaults(NotificationCompat.DEFAULT_ALL)
+                    .setSmallIcon(resId)
+                    .setContentTitle(dto.getTitle())
+                    .setContentText(dto.getBody())
+                    .setDefaults(NotificationCompat.DEFAULT_SOUND | NotificationCompat.DEFAULT_VIBRATE)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setBadgeIconType(R.drawable.common_google_signin_btn_icon_dark_focused)
-                    .setContentIntent(contentIntent)
-                    .setStyle(new NotificationCompat.BigTextStyle()
-                            .bigText("Much longer text that cannot fit one line..."))
-                    .setAutoCancel(true);
+                    .setPriority(getMessagePriority(dto.getPriority()))
+                    .setBadgeIconType(resId)
+                    .setAutoCancel(true)
+                    .setContentIntent(contentIntent);
+
+            if (!dto.getLargeIcon().equals("")) {
+                int largeIconResId = resources.getIdentifier(dto.getLargeIcon(), "mipmap", context.getPackageName());
+                notificationBuilder.setLargeIcon(BitmapFactory.decodeResource(resources, largeIconResId));
+            }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                String channelName = "app_notifications";
+                String channelId;
+                int importance;
+
+                switch (dto.getPriority()) {
+                    case PRIORITY_URGENT:
+                        channelId = NOTIFICATION_CHANNEL + "_urgent";
+                        channelName = channelName + "_urgent";
+                        importance = NotificationManager.IMPORTANCE_HIGH;
+                        break;
+                    case PRIORITY_HIGH:
+                        channelId = NOTIFICATION_CHANNEL + "_high";
+                        channelName = channelName + "_high";
+                        importance = NotificationManager.IMPORTANCE_DEFAULT;
+                        break;
+                    case PRIORITY_DEFAULT:
+                        channelId = NOTIFICATION_CHANNEL + "_medium";
+                        channelName = channelName + "_medium";
+                        importance = NotificationManager.IMPORTANCE_LOW;
+                        break;
+                    case PRIORITY_LOW:
+                        channelId = NOTIFICATION_CHANNEL + "_low";
+                        channelName = channelName + "_low";
+                        importance = NotificationManager.IMPORTANCE_MIN;
+                        break;
+                    default:
+                        channelId = NOTIFICATION_CHANNEL + "_medium";
+                        channelName = channelName + "_medium";
+                        importance = NotificationManager.IMPORTANCE_LOW;
+                }
+
+                Log.d(TAG, channelId + ':' + channelName + ":" + importance);
+
                 NotificationChannel mChannel = new NotificationChannel(
-                        NOTIFICATION_CHANNEL, "my notification", NotificationManager.IMPORTANCE_DEFAULT
+                        channelId, channelName, importance
                 );
-                mChannel.setDescription("internal notification");
+                mChannel.setDescription("Smart Intercom notifications");
                 mChannel.enableLights(true);
                 mChannel.enableVibration(true);
                 mChannel.setLightColor(Color.WHITE);
+                mChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                mChannel.setShowBadge(true);
                 getNotificationManager().createNotificationChannel(mChannel);
+
+                notificationBuilder.setChannelId(channelId);
             }
 
-            getNotificationManager().notify(0, notificationBuilder.build());
-            this.playNotificationSound();
+            getNotificationManager().notify(
+                    dto.getChannelId(), notificationBuilder.build()
+            );
 
         } catch (Exception e) {
             Log.d(TAG, "Error on sendNotification", e);
         }
+    }
+
+    private int getMessagePriority(String dtoPriority) {
+        int priorityMessage;
+        switch (dtoPriority) {
+            case PRIORITY_URGENT:
+                priorityMessage = NotificationCompat.PRIORITY_MAX;
+                break;
+            case PRIORITY_HIGH:
+                priorityMessage = NotificationCompat.PRIORITY_HIGH;
+                break;
+            case PRIORITY_DEFAULT:
+                priorityMessage = NotificationCompat.PRIORITY_DEFAULT;
+                break;
+            case PRIORITY_LOW:
+                priorityMessage = NotificationCompat.PRIORITY_LOW;
+                break;
+            default:
+                priorityMessage = NotificationCompat.PRIORITY_DEFAULT;
+        }
+
+        return priorityMessage;
     }
 
     public void playNotificationSound() {

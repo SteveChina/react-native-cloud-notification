@@ -20,8 +20,10 @@ public class ReactHelper {
     }
 
     public void sendEvent(String eventName, Object params) {
-        this.context
-                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                .emit(eventName, params);
+        if (this.context != null) {
+            this.context
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                    .emit(eventName, params);
+        }
     }
 }

@@ -7,11 +7,8 @@ import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
-import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
-
-import java.util.HashMap;
 import java.util.Map;
 
 public class MessagingService extends FirebaseMessagingService {
@@ -95,7 +92,11 @@ public class MessagingService extends FirebaseMessagingService {
     }
 
     private void sendDataNotification(String title, String body) {
+        RNNotificationManager.getInstance().setContext(getApplicationContext());
         Log.d(TAG, "sendDataNotification, title: " + title);
-        RNNotificationManager.getInstance().sendNotification(title, body);
+        NotificationDto dto = new NotificationDto();
+        dto.setBody(body);
+        dto.setTitle(title);
+        RNNotificationManager.getInstance().sendNotification(dto);
     }
 }

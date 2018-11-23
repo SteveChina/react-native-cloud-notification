@@ -10,9 +10,8 @@ import android.widget.Toast;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.ReadableMap;
 import com.google.firebase.iid.FirebaseInstanceId;
-
-import java.awt.font.TextAttribute;
 
 public class RNCloudNotificationModule extends ReactContextBaseJavaModule {
     private static final String TAG = "RNCloudNotification";
@@ -27,7 +26,9 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule {
         ReactHelper.getInstance().setReactContext(reactContext);
         RNNotificationManager
                 .getInstance()
-                .setContext(getReactApplicationContext());
+                .setActivity(getCurrentActivity());
+
+        Log.d(TAG, "token: " + FirebaseInstanceId.getInstance().getToken());
     }
 
     @Override
@@ -69,8 +70,29 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void sendNotification(String title, String body) {
+    public void sendNotification(ReadableMap data) {
         Log.d(TAG, "send notification");
-        RNNotificationManager.getInstance().sendNotification(title, body);
+        NotificationDto dto = new NotificationDto();
+        dto.setTitle(data.getString("title"));
+        dto.setBody(data.getString("body"));
+
+        if (data.hasKey("smallIcon")) {
+            dto.setSmallIcon(data.getString("smallIcon"));
+        }
+
+        if (data.hasKey("channelId")) {
+            dto.setChannelId(data.getInt("channelId"));
+        }
+
+        if (data.hasKey("largeIcon")) {
+            dto.setLargeIcon(data.getString("largeIcon"));
+        }
+
+        if (data.hasKey("priority")) {
+            dto.setPriority(data.getString("priority"));
+        }
+
+        RNNotificationManager.getInstance().setContext(getReactApplicationContext());
+        RNNotificationManager.getInstance().sendNotification(dto);
     }
 }

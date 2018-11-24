@@ -1,8 +1,10 @@
 package com.qimus.react;
 
+import java.util.Map;
+
 public class NotificationDto {
-
-
+    private String targetRoute;
+    private Map<String, Object> routeParams;
     private String title;
     private String body;
     private int channelId;
@@ -60,5 +62,21 @@ public class NotificationDto {
 
     public void setPriority(String priority) {
         this.priority = priority;
+    }
+
+    public String getTargetRoute() {
+        return targetRoute;
+    }
+
+    public void setTargetRoute(String targetRoute) {
+        this.targetRoute = targetRoute;
+    }
+
+    public Map<String, Object> getRouteParams() {
+        return routeParams;
+    }
+
+    public void setRouteParams(Map<String, Object> routeParams) {
+        this.routeParams = routeParams;
     }
 }

@@ -1,32 +1,48 @@
 
 package com.qimus.react;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.PowerManager;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.facebook.react.bridge.ActivityEventListener;
+import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.google.firebase.iid.FirebaseInstanceId;
 
-public class RNCloudNotificationModule extends ReactContextBaseJavaModule {
+public class RNCloudNotificationModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
     private static final String TAG = "RNCloudNotification";
 
     private final ReactApplicationContext reactContext;
 
     public static final String EVENT_FCM_UPDATE  = "FCMTokenUpdate";
+    public static final String EVENT_CHANGE_ROUTE = "FCMChangeRoute";
+
+    public static boolean isForeground;
+
+    private final ActivityEventListener mActivityEventListener = new BaseActivityEventListener() {
+        @Override
+        public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+            boolean isClicked = data.getExtras().getBoolean("clicked");
+            String yesNo = isClicked == true ? "yes" : "no";
+            Log.d("ActivityEventListener", "clicked: " + yesNo);
+        }
+    };
 
     public RNCloudNotificationModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
         ReactHelper.getInstance().setReactContext(reactContext);
-        RNNotificationManager
-                .getInstance()
-                .setActivity(getCurrentActivity());
+        reactContext.addActivityEventListener(mActivityEventListener);
+        reactContext.addLifecycleEventListener(this);
 
         Log.d(TAG, "token: " + FirebaseInstanceId.getInstance().getToken());
     }
@@ -35,6 +51,8 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule {
     public String getName() {
         return "RNCloudNotification";
     }
+
+
 
     @ReactMethod
     public void show(String message, int duration) {
@@ -51,6 +69,19 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule {
     public void unlockScreen() {
         PowerManager pm = (PowerManager) getReactApplicationContext()
                 .getSystemService(Context.POWER_SERVICE);
+
+        if (isScreenOn(pm) == false) {
+            PowerManager.WakeLock wl1 = pm.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                            | PowerManager.ACQUIRE_CAUSES_WAKEUP
+                            | PowerManager.ON_AFTER_RELEASE, "wl1");
+            wl1.acquire();
+            wl1.release();
+        }
+    }
+
+    @ReactMethod
+    public boolean isScreenOn(PowerManager pm) {
         boolean isScreenOn;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
@@ -59,14 +90,7 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule {
             isScreenOn = pm.isScreenOn();
         }
 
-        if (isScreenOn == false) {
-            PowerManager.WakeLock wl1 = pm.newWakeLock(
-                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK
-                            | PowerManager.ACQUIRE_CAUSES_WAKEUP
-                            | PowerManager.ON_AFTER_RELEASE, "wl1");
-            wl1.acquire();
-            wl1.release();
-        }
+        return  isScreenOn;
     }
 
     @ReactMethod
@@ -92,7 +116,44 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule {
             dto.setPriority(data.getString("priority"));
         }
 
-        RNNotificationManager.getInstance().setContext(getReactApplicationContext());
-        RNNotificationManager.getInstance().sendNotification(dto);
+        if (data.hasKey("targetRoute")) {
+            dto.setTargetRoute(data.getString("targetRoute"));
+        }
+
+        if (data.hasKey("routeParams")) {
+            dto.setRouteParams(MapUtil.toMap(data.getMap("routeParams")));
+        }
+
+        RNNotificationManager notificationManager = new RNNotificationManager(getReactApplicationContext());
+        notificationManager.sendNotification(dto);
+    }
+
+    @Override
+    public void onHostResume() {
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            return;
+        }
+
+        Bundle extra = currentActivity.getIntent().getExtras();
+        if (extra != null) {
+            String targetRoute = extra.getString("targetRoute");
+            if (targetRoute != null) {
+                ReactHelper.getInstance().sendEvent(EVENT_CHANGE_ROUTE, targetRoute);
+            }
+        }
+        isForeground = true;
+    }
+
+    @Override
+    public void onHostPause() {
+        Log.d(TAG, "onHostPause");
+        isForeground = false;
+    }
+
+    @Override
+    public void onHostDestroy() {
+        Log.d(TAG, "onHostDestroy");
+        isForeground = false;
     }
 }

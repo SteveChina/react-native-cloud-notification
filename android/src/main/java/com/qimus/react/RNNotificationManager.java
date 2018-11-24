@@ -1,6 +1,5 @@
 package com.qimus.react;
 
-import android.app.Activity;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -26,17 +25,10 @@ public class RNNotificationManager {
     public static final String PRIORITY_DEFAULT = "default";
     public static final String PRIORITY_LOW = "low";
 
-    private static RNNotificationManager instance = null;
-
     private Context context;
-    private Activity activity;
 
-    public static RNNotificationManager getInstance() {
-        if (instance == null) {
-            instance = new RNNotificationManager();
-        }
-
-        return instance;
+    public RNNotificationManager(Context context) {
+        this.context = context;
     }
 
     public RNNotificationManager setContext(Context context) {
@@ -48,10 +40,6 @@ public class RNNotificationManager {
         return (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
     }
 
-    public RNNotificationManager setActivity(Activity activity) {
-        this.activity = activity;
-        return this;
-    }
 
     private Intent createIntent() throws Exception {
         String ns = context.getPackageName();
@@ -66,29 +54,56 @@ public class RNNotificationManager {
 
     public void sendNotification(NotificationDto dto) {
         try {
-            Intent intent = createIntent();
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            intent.putExtra("clicked", true);
+            Intent intent = new Intent(this.context, NotificationReceiver.class);
+            //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            if (dto.getTargetRoute() != null) {
+                intent.putExtra("targetRoute", dto.getTargetRoute());
+            }
 
-            PendingIntent contentIntent = PendingIntent.getActivity(
+            PendingIntent contentIntent = PendingIntent.getBroadcast(
                     this.context,
                     0,
                     intent,
-                    PendingIntent.FLAG_ONE_SHOT
+                    PendingIntent.FLAG_UPDATE_CURRENT
             );
 
             PackageManager pm = this.context.getPackageManager();
             Resources resources = pm.getResourcesForApplication(context.getPackageName());
             int resId = resources.getIdentifier(dto.getSmallIcon(), "mipmap", context.getPackageName());
 
-            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this.context, NOTIFICATION_CHANNEL)
+            int priorityMessage;
+            String channelId;
+            switch (dto.getPriority()) {
+                case PRIORITY_URGENT:
+                    priorityMessage = NotificationCompat.PRIORITY_MAX;
+                    channelId = NOTIFICATION_CHANNEL + "_urgent";
+                    break;
+                case PRIORITY_HIGH:
+                    priorityMessage = NotificationCompat.PRIORITY_HIGH;
+                    channelId = NOTIFICATION_CHANNEL + "_high";
+                    break;
+                case PRIORITY_DEFAULT:
+                    priorityMessage = NotificationCompat.PRIORITY_DEFAULT;
+                    channelId = NOTIFICATION_CHANNEL + "_medium";
+                    break;
+                case PRIORITY_LOW:
+                    priorityMessage = NotificationCompat.PRIORITY_LOW;
+                    channelId = NOTIFICATION_CHANNEL + "_low";
+                    break;
+                default:
+                    priorityMessage = NotificationCompat.PRIORITY_DEFAULT;
+                    channelId = NOTIFICATION_CHANNEL + "_medium";
+            }
+
+
+            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this.context, channelId)
                     .setSmallIcon(resId)
                     .setContentTitle(dto.getTitle())
                     .setContentText(dto.getBody())
                     .setDefaults(NotificationCompat.DEFAULT_SOUND | NotificationCompat.DEFAULT_VIBRATE)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                     .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
-                    .setPriority(getMessagePriority(dto.getPriority()))
+                    .setPriority(priorityMessage)
                     .setBadgeIconType(resId)
                     .setAutoCancel(true)
                     .setContentIntent(contentIntent);
@@ -100,37 +115,29 @@ public class RNNotificationManager {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 String channelName = "app_notifications";
-                String channelId;
                 int importance;
 
                 switch (dto.getPriority()) {
                     case PRIORITY_URGENT:
-                        channelId = NOTIFICATION_CHANNEL + "_urgent";
                         channelName = channelName + "_urgent";
                         importance = NotificationManager.IMPORTANCE_HIGH;
                         break;
                     case PRIORITY_HIGH:
-                        channelId = NOTIFICATION_CHANNEL + "_high";
                         channelName = channelName + "_high";
                         importance = NotificationManager.IMPORTANCE_DEFAULT;
                         break;
                     case PRIORITY_DEFAULT:
-                        channelId = NOTIFICATION_CHANNEL + "_medium";
                         channelName = channelName + "_medium";
                         importance = NotificationManager.IMPORTANCE_LOW;
                         break;
                     case PRIORITY_LOW:
-                        channelId = NOTIFICATION_CHANNEL + "_low";
                         channelName = channelName + "_low";
                         importance = NotificationManager.IMPORTANCE_MIN;
                         break;
                     default:
-                        channelId = NOTIFICATION_CHANNEL + "_medium";
                         channelName = channelName + "_medium";
                         importance = NotificationManager.IMPORTANCE_LOW;
                 }
-
-                Log.d(TAG, channelId + ':' + channelName + ":" + importance);
 
                 NotificationChannel mChannel = new NotificationChannel(
                         channelId, channelName, importance
@@ -142,8 +149,6 @@ public class RNNotificationManager {
                 mChannel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
                 mChannel.setShowBadge(true);
                 getNotificationManager().createNotificationChannel(mChannel);
-
-                notificationBuilder.setChannelId(channelId);
             }
 
             getNotificationManager().notify(
@@ -153,28 +158,6 @@ public class RNNotificationManager {
         } catch (Exception e) {
             Log.d(TAG, "Error on sendNotification", e);
         }
-    }
-
-    private int getMessagePriority(String dtoPriority) {
-        int priorityMessage;
-        switch (dtoPriority) {
-            case PRIORITY_URGENT:
-                priorityMessage = NotificationCompat.PRIORITY_MAX;
-                break;
-            case PRIORITY_HIGH:
-                priorityMessage = NotificationCompat.PRIORITY_HIGH;
-                break;
-            case PRIORITY_DEFAULT:
-                priorityMessage = NotificationCompat.PRIORITY_DEFAULT;
-                break;
-            case PRIORITY_LOW:
-                priorityMessage = NotificationCompat.PRIORITY_LOW;
-                break;
-            default:
-                priorityMessage = NotificationCompat.PRIORITY_DEFAULT;
-        }
-
-        return priorityMessage;
     }
 
     public void playNotificationSound() {

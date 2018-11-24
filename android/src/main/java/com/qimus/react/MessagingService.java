@@ -92,11 +92,11 @@ public class MessagingService extends FirebaseMessagingService {
     }
 
     private void sendDataNotification(String title, String body) {
-        RNNotificationManager.getInstance().setContext(getApplicationContext());
         Log.d(TAG, "sendDataNotification, title: " + title);
         NotificationDto dto = new NotificationDto();
         dto.setBody(body);
         dto.setTitle(title);
-        RNNotificationManager.getInstance().sendNotification(dto);
+        RNNotificationManager notificationManager = new RNNotificationManager(getApplicationContext());
+        notificationManager.sendNotification(dto);
     }
 }

@@ -4,7 +4,7 @@ import java.util.Map;
 
 public class NotificationDto {
     private String targetRoute;
-    private Map<String, Object> routeParams;
+    private Map<String, Object> routeParams = null;
     private String title;
     private String body;
     private int channelId;

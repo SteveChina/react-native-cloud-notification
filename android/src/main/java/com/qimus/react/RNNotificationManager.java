@@ -13,8 +13,11 @@ import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
+
+import java.io.Serializable;
 
 public class RNNotificationManager {
     private static final String TAG = "RNNotificationManager";
@@ -57,7 +60,11 @@ public class RNNotificationManager {
             Intent intent = new Intent(this.context, NotificationReceiver.class);
             //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             if (dto.getTargetRoute() != null) {
-                intent.putExtra("targetRoute", dto.getTargetRoute());
+                intent.putExtra("routeName", dto.getTargetRoute());
+            }
+
+            if (dto.getRouteParams() != null) {
+                intent.putExtra("routeParams", (Serializable) dto.getRouteParams());
             }
 
             PendingIntent contentIntent = PendingIntent.getBroadcast(

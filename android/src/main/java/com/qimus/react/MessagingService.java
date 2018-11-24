@@ -6,6 +6,7 @@ import android.os.PowerManager;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
@@ -31,12 +32,12 @@ public class MessagingService extends FirebaseMessagingService {
         if (notification == null) {
             Map<String, String> data = remoteMessage.getData();
             if (data.containsKey("title") && data.containsKey("body")) {
-                sendDataNotification(data.get("title"), data.get("body"));
+                sendDataNotification(data);
             } else {
                 this.tryWakeUp();
             }
         } else {
-            sendDataNotification(notification.getTitle(), notification.getBody());
+            sendNotification(notification.getTitle(), notification.getBody());
         }
     }
 
@@ -50,9 +51,11 @@ public class MessagingService extends FirebaseMessagingService {
         }
 
         WritableMap dataMap = Arguments.createMap();
-
-        for (Map.Entry<String, String> entry : remoteMessage.getData().entrySet()) {
-            dataMap.putString(entry.getKey(), entry.getValue());
+        Map<String, String> remoteMessageData = remoteMessage.getData();
+        if (remoteMessageData != null) {
+            for (Map.Entry<String, String> entry : remoteMessageData.entrySet()) {
+                dataMap.putString(entry.getKey(), entry.getValue());
+            }
         }
 
         WritableMap params = Arguments.createMap();
@@ -91,7 +94,36 @@ public class MessagingService extends FirebaseMessagingService {
         }
     }
 
-    private void sendDataNotification(String title, String body) {
+    private void sendDataNotification(Map<String, String> data) {
+        NotificationDto dto = new NotificationDto();
+        dto.setTitle(data.get("title"));
+        dto.setBody(data.get("body"));
+
+        if (data.containsKey("smallIcon")) {
+            dto.setSmallIcon(data.get("smallIcon"));
+        }
+
+        if (data.containsKey("channelId")) {
+            dto.setChannelId(Integer.parseInt(data.get("channelId")));
+        }
+
+        if (data.containsKey("largeIcon")) {
+            dto.setLargeIcon(data.get("largeIcon"));
+        }
+
+        if (data.containsKey("priority")) {
+            dto.setPriority(data.get("priority"));
+        }
+
+        if (data.containsKey("routeName")) {
+            dto.setTargetRoute(data.get("routeName"));
+        }
+
+        RNNotificationManager notificationManager = new RNNotificationManager(getApplicationContext());
+        notificationManager.sendNotification(dto);
+    }
+
+    private void sendNotification(String title, String body) {
         Log.d(TAG, "sendDataNotification, title: " + title);
         NotificationDto dto = new NotificationDto();
         dto.setBody(body);

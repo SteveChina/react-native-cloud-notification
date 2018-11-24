@@ -104,6 +104,17 @@ public class MapUtil {
         return map;
     }
 
+    public static Map<String, String> toStringMap(ReadableMap readableMap) {
+        Map<String, String> map = new HashMap<>();
+        ReadableMapKeySetIterator iterator = readableMap.keySetIterator();
+        while (iterator.hasNextKey()) {
+            String key = iterator.nextKey();
+            map.put(key, readableMap.getString(key));
+        }
+
+        return map;
+    }
+
     public static WritableMap toWritableMap(Map<String, Object> map) {
         WritableMap writableMap = Arguments.createMap();
         Iterator iterator = map.entrySet().iterator();

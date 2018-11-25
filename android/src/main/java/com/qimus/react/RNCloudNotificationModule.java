@@ -136,21 +136,10 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule implem
 
     @Override
     public void onHostResume() {
+        Log.d(TAG, "onHostResume");
         Activity currentActivity = getCurrentActivity();
         if (currentActivity == null) {
             return;
-        }
-
-        Bundle extra = currentActivity.getIntent().getExtras();
-        if (extra != null && extra.containsKey("routeName")) {
-            String targetRoute = extra.getString("routeName");
-            WritableMap params = Arguments.createMap();
-            params.putString("routeName", targetRoute);
-            if (extra.containsKey("routeParams")) {
-                Serializable sRouteParams = currentActivity.getIntent().getSerializableExtra("routeParams");
-                params.putMap("routeParams", MapUtil.toWritableMap((Map<String, Object>) sRouteParams));
-            }
-            ReactHelper.getInstance().sendEvent(EVENT_CHANGE_ROUTE, params);
         }
 
         isForeground = true;

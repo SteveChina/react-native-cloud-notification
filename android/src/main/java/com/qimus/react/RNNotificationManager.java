@@ -57,17 +57,13 @@ public class RNNotificationManager {
 
     public void sendNotification(NotificationDto dto) {
         try {
-            Intent intent = new Intent(this.context, NotificationReceiver.class);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
             //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             if (dto.getTargetRoute() != null) {
-                intent.putExtra("routeName", dto.getTargetRoute());
+                intent.setData(Uri.parse(dto.getTargetRoute()));
             }
 
-            if (dto.getRouteParams() != null) {
-                intent.putExtra("routeParams", (Serializable) dto.getRouteParams());
-            }
-
-            PendingIntent contentIntent = PendingIntent.getBroadcast(
+            PendingIntent contentIntent = PendingIntent.getActivity(
                     this.context,
                     0,
                     intent,

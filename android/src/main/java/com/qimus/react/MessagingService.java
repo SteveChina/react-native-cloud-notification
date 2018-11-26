@@ -1,20 +1,15 @@
 package com.qimus.react;
 
-import android.app.KeyguardManager;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.BitmapFactory;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.PowerManager;
-import android.support.v4.app.NotificationCompat;
 import android.util.Log;
-import com.google.firebase.iid.FirebaseInstanceId;
+
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableMap;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
-
 import java.util.Map;
 
 public class MessagingService extends FirebaseMessagingService {
@@ -24,26 +19,50 @@ public class MessagingService extends FirebaseMessagingService {
     @Override
     public void onNewToken(String s) {
         super.onNewToken(s);
-        Log.d(TAG, "New token: " + s);
+        ReactHelper.getInstance().sendEvent(RNCloudNotificationModule.EVENT_FCM_UPDATE, s);
     }
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         Log.d(TAG, "Message data payload: " + remoteMessage.getData());
-        Log.d(TAG, "My secret token: " + FirebaseInstanceId.getInstance().getToken());
+        notifyAboutNewMessage(remoteMessage);
 
         RemoteMessage.Notification notification = remoteMessage.getNotification();
 
         if (notification == null) {
             Map<String, String> data = remoteMessage.getData();
             if (data.containsKey("title") && data.containsKey("body")) {
-                sendDataNotification(data.get("title"), data.get("body"));
+                sendDataNotification(data);
             } else {
                 this.tryWakeUp();
             }
         } else {
-            sendDataNotification(notification.getTitle(), notification.getBody());
+            sendNotification(notification.getTitle(), notification.getBody());
         }
+    }
+
+    private void notifyAboutNewMessage(RemoteMessage remoteMessage) {
+        WritableMap notificationData = Arguments.createMap();
+
+        RemoteMessage.Notification notification = remoteMessage.getNotification();
+        if (notification != null) {
+            notificationData.putString("title", notification.getTitle());
+            notificationData.putString("body", notification.getBody());
+        }
+
+        WritableMap dataMap = Arguments.createMap();
+        Map<String, String> remoteMessageData = remoteMessage.getData();
+        if (remoteMessageData != null) {
+            for (Map.Entry<String, String> entry : remoteMessageData.entrySet()) {
+                dataMap.putString(entry.getKey(), entry.getValue());
+            }
+        }
+
+        WritableMap params = Arguments.createMap();
+        params.putMap("data", dataMap);
+        params.putMap("notification", notificationData);
+
+        ReactHelper.getInstance().sendEvent("FCMIncomingMessage", params);
     }
 
     private void tryWakeUp() {
@@ -57,8 +76,6 @@ public class MessagingService extends FirebaseMessagingService {
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             intent.addCategory(Intent.CATEGORY_LAUNCHER);
             intent.putExtra("foreground", true);
-
-            KeyguardManager manager = (KeyguardManager) getApplication().getSystemService(KEYGUARD_SERVICE);
 
             PowerManager pm = (PowerManager) getApplicationContext()
                     .getSystemService(Context.POWER_SERVICE);
@@ -77,27 +94,41 @@ public class MessagingService extends FirebaseMessagingService {
         }
     }
 
-    private void sendDataNotification(String title, String body) {
-        try {
-            Intent intent = new Intent(getApplicationContext(), Class.forName("com.qimus.MainActivity"));
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+    private void sendDataNotification(Map<String, String> data) {
+        NotificationDto dto = new NotificationDto();
+        dto.setTitle(data.get("title"));
+        dto.setBody(data.get("body"));
 
-            Uri defaultsSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-
-            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
-                    //.setSmallIcon(R.drawable.ic_launcher)
-                    //.setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.drawable.ic_launcher))
-                    .setContentTitle(title)
-                    .setContentText(body)
-                    .setAutoCancel(true)
-                    .setSound(defaultsSoundUri);
-
-            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-            notificationManager.notify(0, notificationBuilder.build());
-
-        } catch (Exception e) {
-            Log.d(TAG, "Error on sendDataNotification");
+        if (data.containsKey("smallIcon")) {
+            dto.setSmallIcon(data.get("smallIcon"));
         }
+
+        if (data.containsKey("channelId")) {
+            dto.setChannelId(Integer.parseInt(data.get("channelId")));
+        }
+
+        if (data.containsKey("largeIcon")) {
+            dto.setLargeIcon(data.get("largeIcon"));
+        }
+
+        if (data.containsKey("priority")) {
+            dto.setPriority(data.get("priority"));
+        }
+
+        if (data.containsKey("routeName")) {
+            dto.setTargetRoute(data.get("routeName"));
+        }
+
+        RNNotificationManager notificationManager = new RNNotificationManager(getApplicationContext());
+        notificationManager.sendNotification(dto);
+    }
+
+    private void sendNotification(String title, String body) {
+        Log.d(TAG, "sendDataNotification, title: " + title);
+        NotificationDto dto = new NotificationDto();
+        dto.setBody(body);
+        dto.setTitle(title);
+        RNNotificationManager notificationManager = new RNNotificationManager(getApplicationContext());
+        notificationManager.sendNotification(dto);
     }
 }

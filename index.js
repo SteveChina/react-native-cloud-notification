@@ -8,7 +8,8 @@ RNCloudNotification.on = (eventName, callback) => {
 };
 
 export const EVENT_CHANGE_ROUTE = 'FCMChangeRoute';
-export const EVENT_FCM_NOTIFICATION = '';
+export const EVENT_FCM_NOTIFICATION = 'FCMIncomingMessage';
+export const EVENT_FCM_TOKEN_UPDATE = 'FCMTokenUpdate';
 
 export const PRIORITY_URGENT = 'urgent';
 export const PRIORITY_HIGH = 'high';

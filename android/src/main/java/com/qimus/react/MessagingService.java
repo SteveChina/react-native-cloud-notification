@@ -6,7 +6,6 @@ import android.os.PowerManager;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
-import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
@@ -19,7 +18,7 @@ public class MessagingService extends FirebaseMessagingService {
     @Override
     public void onNewToken(String s) {
         super.onNewToken(s);
-        ReactHelper.getInstance().sendEvent(RNCloudNotificationModule.EVENT_FCM_UPDATE, s);
+        ReactHelper.getInstance().sendEvent(RNCloudNotificationModule.EVENT_FCM_TOKEN_UPDATE, s);
     }
 
     @Override
@@ -33,7 +32,7 @@ public class MessagingService extends FirebaseMessagingService {
             Map<String, String> data = remoteMessage.getData();
             if (data.containsKey("title") && data.containsKey("body")) {
                 sendDataNotification(data);
-            } else {
+            } else if (data.containsKey("action") && data.get("action").equals("wake_up")) {
                 this.tryWakeUp();
             }
         } else {
@@ -62,7 +61,7 @@ public class MessagingService extends FirebaseMessagingService {
         params.putMap("data", dataMap);
         params.putMap("notification", notificationData);
 
-        ReactHelper.getInstance().sendEvent("FCMIncomingMessage", params);
+        ReactHelper.getInstance().sendEvent(RNCloudNotificationModule.EVENT_FCM_NOTIFICATION, params);
     }
 
     private void tryWakeUp() {

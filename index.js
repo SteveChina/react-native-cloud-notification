@@ -1,11 +1,13 @@
 
-import { NativeModules, DeviceEventEmitter } from 'react-native';
+import { NativeModules, DeviceEventEmitter, Platform } from 'react-native';
 
 const { RNCloudNotification } = NativeModules;
 
-RNCloudNotification.on = (eventName, callback) => {
-    DeviceEventEmitter.addListener(eventName, callback);
-};
+if(Platform.OS=='android'){
+    RNCloudNotification.on = (eventName, callback) => {
+        DeviceEventEmitter.addListener(eventName, callback);
+    };
+}
 
 export const EVENT_CHANGE_ROUTE = 'FCMChangeRoute';
 export const EVENT_FCM_NOTIFICATION = 'FCMIncomingMessage';

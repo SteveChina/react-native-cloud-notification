@@ -20,6 +20,8 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.iid.InstanceIdResult;
+import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -29,8 +31,9 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule implem
 
     private final ReactApplicationContext reactContext;
 
-    public static final String EVENT_FCM_UPDATE  = "FCMTokenUpdate";
+    public static final String EVENT_FCM_TOKEN_UPDATE  = "FCMTokenUpdate";
     public static final String EVENT_CHANGE_ROUTE = "FCMChangeRoute";
+    public static final String EVENT_FCM_NOTIFICATION = "FCMIncomingMessage";
 
     public static boolean isForeground;
 
@@ -47,7 +50,7 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule implem
         super(reactContext);
         this.reactContext = reactContext;
         ReactHelper.getInstance().setReactContext(reactContext);
-        reactContext.addActivityEventListener(mActivityEventListener);
+        //reactContext.addActivityEventListener(mActivityEventListener);
         reactContext.addLifecycleEventListener(this);
 
         Log.d(TAG, "token: " + FirebaseInstanceId.getInstance().getToken());
@@ -66,9 +69,20 @@ public class RNCloudNotificationModule extends ReactContextBaseJavaModule implem
     }
 
     @ReactMethod
-    public String getFCMToken() {
-        ReactHelper.getInstance().sendEvent(EVENT_FCM_UPDATE, FirebaseInstanceId.getInstance().getToken());
-        return FirebaseInstanceId.getInstance().getToken();
+    public void getFCMToken() {
+        Log.d(TAG, "token: " + "11111111111111");
+        FirebaseInstanceId.getInstance().getInstanceId().addOnSuccessListener( new OnSuccessListener<InstanceIdResult>() {
+            @Override
+            public void onSuccess(InstanceIdResult instanceIdResult) {
+                String deviceToken = instanceIdResult.getToken();
+                // Do whatever you want with your token now
+                // i.e. store it on SharedPreferences or DB
+                Log.d(TAG, "token: " + deviceToken);
+                ReactHelper.getInstance().sendEvent(EVENT_FCM_TOKEN_UPDATE, deviceToken);
+            }
+        });
+        //ReactHelper.getInstance().sendEvent(EVENT_FCM_TOKEN_UPDATE, FirebaseInstanceId.getInstance().getToken());
+        //return FirebaseInstanceId.getInstance().getToken();
     }
 
     @ReactMethod
